@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use LucasDotVin\Soulbscription\Models\Plan;
 
 class RegisteredUserController extends Controller
 {
@@ -33,7 +34,7 @@ class RegisteredUserController extends Controller
             'email'    => $request->email,
             'password' => Hash::make($request->password),
         ]);
-
+        $user->subscribeTo(Plan::where('name', 'Trial')->first());
         event(new Registered($user));
 
         Auth::login($user);
