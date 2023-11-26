@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Feature;
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Console\Command;
 use LucasDotVin\Soulbscription\Enums\PeriodicityType;
-use LucasDotVin\Soulbscription\Models\Feature;
-use LucasDotVin\Soulbscription\Models\Plan;
 
 class InstallCommand extends Command
 {
@@ -34,27 +34,24 @@ class InstallCommand extends Command
         $limitedFeature = Feature::firstOrCreate([
             'name' => 'add-tasks-limited',
         ], [
+            'title' => 'Количество задач',
             'consumable' => true,
         ]);
 
         $unlimitedFeature = Feature::firstOrCreate([
             'name' => 'add-tasks-unlimited',
         ], [
+            'title' => 'Неограниченное количество задач',
             'consumable' => false,
         ]);
 
 
-        $unlim = Plan::firstOrCreate([
-            'name' => 'unlim',
-        ], [
-            'periodicity_type' => PeriodicityType::Day,
-            'periodicity'      => 5,
-        ]);
         $bronze = Plan::firstOrCreate([
             'name' => 'bronze',
         ], [
             'periodicity_type' => PeriodicityType::Day,
             'periodicity'      => 2,
+            'price' => 100,
         ]);
 
         $silver = Plan::firstOrCreate([
@@ -62,6 +59,7 @@ class InstallCommand extends Command
         ], [
             'periodicity_type' => PeriodicityType::Day,
             'periodicity'      => 3,
+            'price' => 300,
         ]);
 
         $gold = Plan::firstOrCreate([
@@ -69,6 +67,15 @@ class InstallCommand extends Command
         ], [
             'periodicity_type' => PeriodicityType::Day,
             'periodicity'      => 5,
+            'price' => 500,
+        ]);
+
+        $unlim = Plan::firstOrCreate([
+            'name' => 'unlim',
+        ], [
+            'periodicity_type' => PeriodicityType::Day,
+            'periodicity'      => 5,
+            'price'            => 1000,
         ]);
 
         $trialPlan = Plan::firstOrCreate([

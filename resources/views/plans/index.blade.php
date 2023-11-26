@@ -41,12 +41,9 @@
                                 <section class="flex flex-col w-full max-w-sm p-12 space-y-6 bg-white rounded-lg shadow-md">
                                     <!-- Price -->
                                     <div class="flex-shrink-0">
-            <span class="text-4xl font-medium tracking-tight">
-                {{ $plan->name }}
-            </span>
+                                        <span class="text-4xl font-medium tracking-tight">{{ $plan->name }}</span>
                                     </div>
 
-                                    <!--  -->
                                     <div class="flex-shrink-0 pb-6 space-y-2 border-b">
                                         <h2 class="text-2xl font-normal">{{ $plan->name }}</h2>
                                     </div>
@@ -68,7 +65,7 @@
                                                         clip-rule="evenodd"
                                                     />
                                                 </svg>
-                                                <span class="ml-3 text-base font-medium">{{$feature->name}}</span>
+                                                <span class="ml-3 text-base font-medium">{{$feature->title}} {{$feature->charges}}</span>
                                             </li>
                                         @endforeach
                                     </ul>
