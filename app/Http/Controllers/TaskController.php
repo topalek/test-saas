@@ -28,12 +28,12 @@ class TaskController extends Controller
     public function store(Request $request)
     {
         Task::create(['task' => $request->input('task'), 'owner_id' => Auth::id()]);
+        \auth()->user()->consume('add-tasks-limited', 1);
         return to_route('tasks.index');
     }
 
     public function create()
     {
-        return view('task.create');
         $subscriptionPlan = auth()->user()->subscription->plan->name ?? null;
 
         if ($subscriptionPlan === null) {
@@ -41,18 +41,21 @@ class TaskController extends Controller
         }
 
         $feature = match ($subscriptionPlan) {
-            'Silver Monthly', 'Silver Yearly', 'Trial' => 'manage-tasks-limited',
-            'Gold Monthly', 'Gold Yearly' => 'manage-tasks-unlimited',
+            'bronze', 'silver', 'trial' => 'add-tasks-limited',
+            'gold', 'unlim' => 'add-tasks-unlimited',
         };
 
         if (auth()->user()->cantConsume($feature, 1)) {
             $message = match ($subscriptionPlan) {
-                'Silver Monthly', 'Silver Yearly' => 'You can create only 10 tasks on Silver plan',
-                'Trial' => "You can create only 3 tasks on Free Trial, please [<a href='/plan/' class='hover:underline'>choose your plan</a>]",
+                'bronze' => 'You can create only 10 tasks on Silver plan',
+                'silver' => 'You can create only 10 tasks on Silver plan',
+                'gold' => 'You can create only 10 tasks on Silver plan',
+                'trial' => "You can create only 3 tasks on Free Trial, please [<a href='/plan/' class='hover:underline'>choose your plan</a>]",
             };
 
             return redirect()->route('tasks.index')->with('status', $message);
         }
+        return view('task.create');
     }
 
     public function show(Task $task)

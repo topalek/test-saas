@@ -1,4 +1,5 @@
 <x-app-layout>
+    @section('ststus')
     <div class="container">
         <div class="row">
             <div class="card bg-white mt-5">

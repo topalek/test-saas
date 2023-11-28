@@ -22,14 +22,13 @@ class InstallCommand extends Command
     private function install()
     {
         $user = User::query()
-                    ->firstOrCreate([
-                        'email' => 'admin@example.com',
-                    ], [
-                        'name'              => 'admin',
-                        'email_verified_at' => now(),
-                        'password'          => bcrypt('123123')
-                    ])
-        ;
+            ->firstOrCreate([
+                'email' => 'admin@example.com',
+            ], [
+                'name'              => 'admin',
+                'email_verified_at' => now(),
+                'password'          => bcrypt('123123')
+            ]);
 
         $limitedFeature = Feature::firstOrCreate([
             'name' => 'add-tasks-limited',
@@ -85,16 +84,14 @@ class InstallCommand extends Command
             'periodicity'      => 1,
         ]);
 
-        if ($bronze->features()->count() == 0) {
-            $bronze->features()->attach($limitedFeature, ['charges' => 3]);
-            $silver->features()->attach($limitedFeature, ['charges' => 5]);
-            $gold->features()->attach($limitedFeature, ['charges' => 10]);
+        $bronze->features()->attach($limitedFeature, ['charges' => 3]);
+        $silver->features()->attach($limitedFeature, ['charges' => 5]);
+        $gold->features()->attach($limitedFeature, ['charges' => 10]);
 
-            $unlim->features()->attach($unlimitedFeature);
+        $unlim->features()->attach($unlimitedFeature);
 
-            $trialPlan->features()->attach($limitedFeature, ['charges' => 3]);
+        $trialPlan->features()->attach($limitedFeature, ['charges' => 3]);
 
-            $user->subscribeTo($trialPlan);
-        }
+        $user->subscribeTo($trialPlan);
     }
 }
