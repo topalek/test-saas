@@ -48,7 +48,7 @@ return new class extends Migration {
 //            $table->string('model_type');
 
 //            $table->string('payment_method')->nullable();
-            $table->boolean('is_paid')->default(false);
+//            $table->boolean('is_paid')->default(false);
 
             $table->float('charging_price', 8, 2)->nullable();
             $table->string('charging_currency')->nullable();
@@ -73,17 +73,6 @@ return new class extends Migration {
             $table->timestamps();
         });
 
-        Schema::create('stripe_customers', function (Blueprint $table) {
-            $table->increments('id');
-
-            $table->morphs('model');
-//            $table->integer('model_id');
-//            $table->string('model_type');
-
-            $table->string('customer_id');
-
-            $table->timestamps();
-        });
     }
 
     public function down()
@@ -92,6 +81,5 @@ return new class extends Migration {
         Schema::dropIfExists('features');
         Schema::dropIfExists('subscriptions');
         Schema::dropIfExists('subscription_usages');
-        Schema::dropIfExists('stripe_customers');
     }
 };

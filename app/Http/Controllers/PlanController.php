@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Modules\Subscriptions\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use LucasDotVin\Soulbscription\Models\Plan;
 
 class PlanController extends Controller
 {

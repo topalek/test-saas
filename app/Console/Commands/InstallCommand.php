@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Feature;
-use App\Models\Plan;
 use App\Models\User;
+use App\Modules\Subscriptions\Enums\FeatureType;
+use App\Modules\Subscriptions\Models\Feature;
+use App\Modules\Subscriptions\Models\Plan;
 use Illuminate\Console\Command;
-use LucasDotVin\Soulbscription\Enums\PeriodicityType;
 
 class InstallCommand extends Command
 {
@@ -30,68 +30,57 @@ class InstallCommand extends Command
                 'password'          => bcrypt('123123')
             ]);
 
-        $limitedFeature = Feature::firstOrCreate([
-            'name' => 'add-tasks-limited',
-        ], [
-            'title' => 'Количество задач',
-            'consumable' => true,
-        ]);
 
-        $unlimitedFeature = Feature::firstOrCreate([
-            'name' => 'add-tasks-unlimited',
+        $trial = Plan::firstOrCreate([
+            'name' => 'trial',
         ], [
-            'title' => 'Неограниченное количество задач',
-            'consumable' => false,
+            'description' => 'Trial desc',
+            'price'       => 0,
+            'currency'    => 'rub',
+            'sort_order'  => 1,
+            'duration'    => 1,
         ]);
-
 
         $bronze = Plan::firstOrCreate([
             'name' => 'bronze',
         ], [
-            'periodicity_type' => PeriodicityType::Day,
-            'periodicity'      => 2,
-            'price' => 100,
+            'description' => 'Bronze desc',
+            'price'       => 100,
+            'currency'    => 'rub',
+            'sort_order'  => 1,
+            'duration'    => 2,
         ]);
 
         $silver = Plan::firstOrCreate([
             'name' => 'silver',
         ], [
-            'periodicity_type' => PeriodicityType::Day,
-            'periodicity'      => 3,
-            'price' => 300,
+            'description' => 'Silver desc',
+            'price'       => 300,
+            'currency'    => 'rub',
+            'sort_order'  => 1,
+            'duration'    => 3,
         ]);
 
         $gold = Plan::firstOrCreate([
             'name' => 'gold',
         ], [
-            'periodicity_type' => PeriodicityType::Day,
-            'periodicity'      => 5,
-            'price' => 500,
+            'description' => 'Gold desc',
+            'price'       => 500,
+            'currency'    => 'rub',
+            'sort_order'  => 1,
+            'duration'    => 5,
         ]);
 
-        $unlim = Plan::firstOrCreate([
-            'name' => 'unlim',
+        Feature::query()->firstOrCreate([
+            'code' => '123',
         ], [
-            'periodicity_type' => PeriodicityType::Day,
-            'periodicity'      => 5,
-            'price'            => 1000,
+            'plan_id'     => 123,
+            'name'        => 123,
+            'description' => 123,
+            'type'        => FeatureType::limit,
+            'limit'       => 1,
         ]);
 
-        $trialPlan = Plan::firstOrCreate([
-            'name' => 'trial',
-        ], [
-            'periodicity_type' => PeriodicityType::Day,
-            'periodicity'      => 1,
-        ]);
-
-        $bronze->features()->attach($limitedFeature, ['charges' => 3]);
-        $silver->features()->attach($limitedFeature, ['charges' => 5]);
-        $gold->features()->attach($limitedFeature, ['charges' => 10]);
-
-        $unlim->features()->attach($unlimitedFeature);
-
-        $trialPlan->features()->attach($limitedFeature, ['charges' => 3]);
-
-        $user->subscribeTo($trialPlan);
+        $user->subscribeTo($trial);
     }
 }

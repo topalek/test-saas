@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SubscriptionUsageLog extends Model
 {
-    protected $table = 'plan_usage_logs';
+    protected $table = 'subscription_usage_logs';
 
     protected $fillable = ['subscription_id'];
 

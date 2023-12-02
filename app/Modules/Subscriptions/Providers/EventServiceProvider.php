@@ -2,9 +2,9 @@
 
 namespace App\Modules\Subscriptions\Providers;
 
-use App\Modules\Subscriptions\Listener\PaymentUpdatedListener;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Vtlabs\Payment\Events\PaymentUpdated;
+
+//use Vtlabs\Payment\Events\PaymentUpdated;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -14,7 +14,7 @@ class EventServiceProvider extends ServiceProvider
      * @var array
      */
     protected $listen = [
-        PaymentUpdated::class => [PaymentUpdatedListener::class]
+//        PaymentUpdated::class => [PaymentUpdatedListener::class]
     ];
 
     /**

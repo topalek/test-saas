@@ -11,6 +11,9 @@ class CreateTasksTable extends Migration
         Schema::create('tasks', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('task');
+            $table->unsignedBigInteger('owner_id')->nullable();
+            $table->foreign('owner_id', 'owner_fk_6796397')->references('id')->on('users');
+
             $table->timestamps();
             $table->softDeletes();
         });

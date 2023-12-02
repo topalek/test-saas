@@ -2,6 +2,7 @@
 
 namespace App\Modules\Subscriptions\Models;
 
+use App\Modules\Subscriptions\Events\FeatureConsumed;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -9,18 +10,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-class PlanSubscriptionModel extends Model
+class Subscription extends Model
 {
     protected $table   = 'subscriptions';
     protected $guarded = [];
-    protected $dates   = [
-        'starts_on',
-        'expires_on',
-        'cancelled_on',
-    ];
+
     protected $casts   = [
         'is_paid'      => 'boolean',
         'is_recurring' => 'boolean',
+        'starts_on'    => Carbon::class,
+        'expires_on'   => Carbon::class,
+        'cancelled_on' => Carbon::class,
     ];
     protected $with    = ['plan'];
 
@@ -64,11 +64,6 @@ class PlanSubscriptionModel extends Model
         $query->where('payment_method', 'stripe');
     }
 
-    /**
-     * Get the remaining days in this subscription.
-     *
-     * @return int
-     */
     public function remainingDays(): int
     {
         if ($this->hasExpired()) {
@@ -78,61 +73,31 @@ class PlanSubscriptionModel extends Model
         return Carbon::now()->diffInDays(Carbon::parse($this->expires_on));
     }
 
-    /**
-     * Checks if the current subscription has expired.
-     *
-     * @return bool
-     */
     public function hasExpired(): bool
     {
         return Carbon::now()->greaterThan(Carbon::parse($this->expires_on));
     }
 
-    /**
-     * Checks if the current subscription is pending cancellation.
-     *
-     * @return bool
-     */
     public function isPendingCancellation(): bool
     {
         return ($this->isCancelled() && $this->isActive());
     }
 
-    /**
-     * Checks if the current subscription is cancelled (expiration date is in the past & the subscription is cancelled).
-     *
-     * @return bool
-     */
     public function isCancelled(): bool
     {
         return $this->cancelled_on != null;
     }
 
-    /**
-     * Checks if the current subscription is active.
-     *
-     * @return bool
-     */
     public function isActive(): bool
     {
         return ($this->hasStarted() && !$this->hasExpired());
     }
 
-    /**
-     * Checks if the current subscription has started.
-     *
-     * @return bool
-     */
     public function hasStarted(): bool
     {
         return Carbon::now()->greaterThanOrEqualTo(Carbon::parse($this->starts_on));
     }
 
-    /**
-     * Cancel this subscription.
-     *
-     * @return self $this
-     */
     public function cancel(): self
     {
         $this->update([
@@ -142,18 +107,8 @@ class PlanSubscriptionModel extends Model
         return $this;
     }
 
-    /**
-     * Consume a feature, if it is 'limit' type.
-     *
-     * @param string $featureCode The feature code. This feature has to be 'limit' type.
-     * @param float  $amount      The amount consumed.
-     *
-     * @return bool Wether the feature was consumed successfully or not.
-     */
     public function consumeFeature(string $featureCode, float $amount): bool
     {
-        $usageModel = new SubscriptionUsage();
-
         $feature = $this->features()->code($featureCode)->first();
 
         if (!$feature || $feature->type != 'limit') {
@@ -164,7 +119,7 @@ class PlanSubscriptionModel extends Model
 
         if (!$usage) {
             $usage = $this->usages()->save(
-                new $usageModel([
+                new SubscriptionUsage([
                     'code' => $featureCode,
                     'used' => 0,
                 ])
@@ -177,7 +132,7 @@ class PlanSubscriptionModel extends Model
 
         $remaining = (float)($feature->isUnlimited()) ? -1 : $feature->limit - ($usage->used + $amount);
 
-        event(new \App\Modules\Subscriptions\Events\FeatureConsumed($this, $feature, $amount, $remaining));
+        event(new FeatureConsumed($this, $feature, $amount, $remaining));
 
         return $usage->update([
             'used' => (float)($usage->used + $amount),

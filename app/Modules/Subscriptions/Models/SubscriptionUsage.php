@@ -9,7 +9,7 @@ use LucasDotVin\Soulbscription\Models\Subscription;
 
 class SubscriptionUsage extends Model
 {
-    protected $table   = 'plans_usages';
+    protected $table = 'subscription_usages';
     protected $guarded = [];
 
     public function subscription(): BelongsTo

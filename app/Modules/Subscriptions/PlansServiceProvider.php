@@ -6,11 +6,7 @@ use Illuminate\Support\ServiceProvider;
 
 class PlansServiceProvider extends ServiceProvider
 {
-    /**
-     * Bootstrap any application services.
-     *
-     * @return void
-     */
+
     public function boot()
     {
         $this->publishes([
@@ -20,15 +16,5 @@ class PlansServiceProvider extends ServiceProvider
         if (app()->runningInConsole()) {
             $this->loadMigrationsFrom(__DIR__ . "/migrations");
         }
-    }
-
-    /**
-     * Register bindings in the container.
-     *
-     * @return void
-     */
-    public function register()
-    {
-        //
     }
 }
