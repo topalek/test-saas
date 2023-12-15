@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Feature;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,8 +13,12 @@ return new class() extends Migration {
      */
     public function up()
     {
-        Schema::table('features', function (Blueprint $table) {
-            $table->boolean('postpaid')->default(false);
+        Schema::create('feature_usage', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedDecimal('value')->nullable();
+            $table->timestamp('expired_at')->nullable();
+            $table->foreignIdFor(Feature::class)->constrained()->cascadeOnDelete();
+            $table->timestamps();
         });
     }
 
@@ -24,8 +29,6 @@ return new class() extends Migration {
      */
     public function down()
     {
-        Schema::table('features', function (Blueprint $table) {
-            $table->dropColumn('postpaid');
-        });
+        Schema::dropIfExists('feature_consumptions');
     }
 };
