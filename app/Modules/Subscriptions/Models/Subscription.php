@@ -2,6 +2,7 @@
 
 namespace App\Modules\Subscriptions\Models;
 
+use App\Modules\Subscriptions\Enums\FeatureType;
 use App\Modules\Subscriptions\Events\FeatureConsumed;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,8 +17,6 @@ class Subscription extends Model
     protected $guarded = [];
 
     protected $casts   = [
-        'is_paid'      => 'boolean',
-        'is_recurring' => 'boolean',
         'starts_on'    => Carbon::class,
         'expires_on'   => Carbon::class,
         'cancelled_on' => Carbon::class,
@@ -29,15 +28,6 @@ class Subscription extends Model
         return $this->morphTo();
     }
 
-    public function scopePaid(Builder $query)
-    {
-        $query->where('is_paid', true);
-    }
-
-    public function scopeUnpaid(Builder $query)
-    {
-        $query->where('is_paid', false);
-    }
 
     public function scopeExpired(Builder $query)
     {
@@ -57,11 +47,6 @@ class Subscription extends Model
     public function scopeNotCancelled(Builder $query)
     {
         $query->whereNull('cancelled_on');
-    }
-
-    public function scopeStripe(Builder $query)
-    {
-        $query->where('payment_method', 'stripe');
     }
 
     public function remainingDays(): int
@@ -111,7 +96,7 @@ class Subscription extends Model
     {
         $feature = $this->features()->code($featureCode)->first();
 
-        if (!$feature || $feature->type != 'limit') {
+        if (!$feature || $feature->type != FeatureType::limit) {
             return false;
         }
 
@@ -239,5 +224,81 @@ class Subscription extends Model
         }
 
         return (float)($feature->isUnlimited()) ? -1 : ($feature->limit - $usage->used);
+    }
+
+    public function subscribeTo(Plan $plan, $expiration = null, $startDate = null): Subscription
+    {
+        if ($plan->periodicity) {
+            $expiration = $expiration ?? $plan->calculateNextRecurrenceEnd($startDate);
+
+            $graceDaysEnd = $plan->hasGraceDays
+                ? $plan->calculateGraceDaysEnd($expiration)
+                : null;
+        } else {
+            $expiration = null;
+            $graceDaysEnd = null;
+        }
+
+        return $this->subscription()
+            ->make([
+                'expired_at'          => $expiration,
+                'grace_days_ended_at' => $graceDaysEnd,
+            ])
+            ->plan()
+            ->associate($plan)
+            ->start($startDate);
+    }
+
+    public function hasSubscriptionTo(Plan $plan): bool
+    {
+        return $this->subscription()
+            ->where('plan_id', $plan->id)
+            ->exists();
+    }
+
+    public function isSubscribedTo(Plan $plan): bool
+    {
+        return $this->hasSubscriptionTo($plan);
+    }
+
+    public function missingSubscriptionTo(Plan $plan): bool
+    {
+        return !$this->hasSubscriptionTo($plan);
+    }
+
+    public function isNotSubscribedTo(Plan $plan): bool
+    {
+        return !$this->isSubscribedTo($plan);
+    }
+
+    public function switchTo(Plan $plan, $expiration = null, $immediately = true): Subscription
+    {
+        if ($immediately) {
+            $this->subscription
+                ->markAsSwitched()
+                ->suppress()
+                ->save();
+
+            return $this->subscribeTo($plan, $expiration);
+        }
+
+        $this->subscription
+            ->markAsSwitched()
+            ->save();
+
+        $startDate = $this->subscription->expired_at;
+        $newSubscription = $this->subscribeTo($plan, startDate: $startDate);
+
+        return $newSubscription;
+    }
+
+    public function expired()
+    {
+        return $this->expired_at->isPast();
+    }
+
+    public function notExpired()
+    {
+        return !$this->expired();
     }
 }

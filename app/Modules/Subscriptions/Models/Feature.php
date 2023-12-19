@@ -6,17 +6,15 @@ use App\Modules\Subscriptions\Enums\FeatureType;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use stdClass;
 
 /**
  * @property int         $id
- * @property int         $plan_id
  * @property string      $name
  * @property string      $code
  * @property string      $description
  * @property FeatureType $type
- * @property int         $limit
  * @property stdClass    $metadata
  * @property Carbon      $created_at
  * @property Carbon      $updated_at
@@ -30,9 +28,9 @@ class Feature extends Model
         'type'     => FeatureType::class
     ];
 
-    public function plan(): BelongsTo
+    public function plans(): BelongsToMany
     {
-        return $this->belongsTo(Plan::class, 'plan_id');
+        return $this->belongsToMany(Plan::class)->using(FeaturePlan::class);
     }
 
     public function scopeCode(Builder $query, string $code): void
@@ -50,8 +48,4 @@ class Feature extends Model
         $query->where('type', FeatureType::feature);
     }
 
-    public function isUnlimited(): bool
-    {
-        return ($this->type == FeatureType::limit && $this->limit < 0);
-    }
 }

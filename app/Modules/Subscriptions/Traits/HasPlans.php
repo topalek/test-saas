@@ -94,12 +94,6 @@ trait HasPlans
                 'starts_on'           => Carbon::now()->subSeconds(1),
                 'expires_on'          => Carbon::now()->addDays($duration),
                 'cancelled_on'        => null,
-                'payment_method'      => ($this->subscriptionPaymentMethod) ?: null,
-                'is_paid'             => (bool)($this->subscriptionPaymentMethod) ? false : true,
-                'charging_price'      => ($this->chargingPrice) ?: $plan->price,
-                'charging_currency'   => ($this->chargingCurrency) ?: $plan->currency,
-                'is_recurring'        => $isRecurring,
-                'recurring_each_days' => $duration,
             ])
         );
 
@@ -441,4 +435,6 @@ trait HasPlans
 
         return $this->subscribeTo($plan, $recurringEachDays);
     }
+
+
 }

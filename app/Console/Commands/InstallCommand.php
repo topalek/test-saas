@@ -19,7 +19,7 @@ class InstallCommand extends Command
         $this->info('Installation completed');
     }
 
-    private function install()
+    private function install(): void
     {
         $user = User::query()
             ->firstOrCreate([
@@ -36,9 +36,9 @@ class InstallCommand extends Command
         ], [
             'description' => 'Trial desc',
             'price'       => 0,
-            'currency'    => 'rub',
-            'sort_order'  => 1,
-            'duration'    => 1,
+            'currency_id' => 'rub',
+            'sort'        => 1,
+            'period'      => 1,
         ]);
 
         $bronze = Plan::firstOrCreate([
@@ -46,9 +46,9 @@ class InstallCommand extends Command
         ], [
             'description' => 'Bronze desc',
             'price'       => 100,
-            'currency'    => 'rub',
-            'sort_order'  => 1,
-            'duration'    => 2,
+            'currency_id' => 'rub',
+            'sort'        => 1,
+            'period'      => 2,
         ]);
 
         $silver = Plan::firstOrCreate([
@@ -56,9 +56,9 @@ class InstallCommand extends Command
         ], [
             'description' => 'Silver desc',
             'price'       => 300,
-            'currency'    => 'rub',
-            'sort_order'  => 1,
-            'duration'    => 3,
+            'currency_id' => 'rub',
+            'sort'        => 1,
+            'period'      => 3,
         ]);
 
         $gold = Plan::firstOrCreate([
@@ -66,20 +66,23 @@ class InstallCommand extends Command
         ], [
             'description' => 'Gold desc',
             'price'       => 500,
-            'currency'    => 'rub',
-            'sort_order'  => 1,
-            'duration'    => 5,
+            'currency_id' => 'rub',
+            'sort'        => 1,
+            'period'      => 5,
         ]);
 
-        Feature::query()->firstOrCreate([
-            'code' => '123',
+        $createTask = Feature::query()->firstOrCreate([
+            'code' => 'create.task',
         ], [
-            'plan_id'     => 123,
-            'name'        => 123,
-            'description' => 123,
+            'name'        => 'Create task limit',
+            'description' => 'Create task limit description',
             'type'        => FeatureType::limit,
-            'limit'       => 1,
         ]);
+
+        $trial->features()->attach($createTask, ['value' => 2]);
+        $bronze->features()->attach($createTask, ['value' => 5]);
+        $silver->features()->attach($createTask, ['value' => 7]);
+        $gold->features()->attach($createTask, ['value' => 10]);
 
         $user->subscribeTo($trial);
     }
