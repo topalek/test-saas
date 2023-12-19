@@ -16,12 +16,14 @@ class Subscription extends Model
     protected $table   = 'subscriptions';
     protected $guarded = [];
 
-    protected $casts   = [
-        'starts_on'    => Carbon::class,
-        'expires_on'   => Carbon::class,
-        'cancelled_on' => Carbon::class,
+    protected $casts = [
+        'starts_on'     => Carbon::class,
+        'expires_on'    => Carbon::class,
+        'cancelled_on'  => Carbon::class,
+        'suppressed_at' => Carbon::class,
+        'was_switched'  => 'boolean',
     ];
-    protected $with    = ['plan'];
+    protected $with  = ['plan'];
 
     public function subscriber(): MorphTo
     {
@@ -300,5 +302,33 @@ class Subscription extends Model
     public function notExpired()
     {
         return !$this->expired();
+    }
+
+    public function started()
+    {
+        if (empty($this->started_at)) {
+            return false;
+        }
+
+        return $this->started_at->isPast();
+    }
+
+    public function notStarted()
+    {
+        return !$this->started();
+    }
+
+    public function suppressed()
+    {
+        if (empty($this->suppressed_at)) {
+            return false;
+        }
+
+        return $this->suppressed_at->isPast();
+    }
+
+    public function notSuppressed()
+    {
+        return !$this->suppressed();
     }
 }

@@ -38,6 +38,8 @@ return new class extends Migration {
             $table->timestamp('starts_on')->nullable();
             $table->timestamp('expires_on')->nullable();
             $table->timestamp('cancelled_on')->nullable();
+            $table->timestamp('suppressed_at')->nullable();
+            $table->boolean('was_switched')->default(false);
             $table->timestamps();
         });
 
