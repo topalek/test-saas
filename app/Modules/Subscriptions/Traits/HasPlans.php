@@ -62,7 +62,7 @@ trait HasPlans
 
     public function activeSubscription()
     {
-        return $this->currentSubscription()->paid()->notCancelled()->first();
+        return $this->currentSubscription()->notCancelled()->first();
     }
 
     public function currentSubscription()
@@ -74,7 +74,7 @@ trait HasPlans
 
     public function subscriptions()
     {
-        return $this->morphMany(Subscription::class, 'model');
+        return $this->morphMany(Subscription::class, 'subscriber');
     }
 
     public function subscribeTo($plan, int $duration = 30, bool $isRecurring = true): Subscription|false
@@ -134,7 +134,7 @@ trait HasPlans
 
     public function hasSubscriptions(): bool
     {
-        return (bool)($this->subscriptions()->count() > 0);
+        return $this->subscriptions()->count() > 0;
     }
 
     public function lastActiveSubscription(): Subscription|false
@@ -436,5 +436,14 @@ trait HasPlans
         return $this->subscribeTo($plan, $recurringEachDays);
     }
 
+    public function expired()
+    {
+        return $this->expired_at->isPast();
+    }
+
+    public function notExpired()
+    {
+        return !$this->expired();
+    }
 
 }
