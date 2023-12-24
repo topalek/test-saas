@@ -5,23 +5,59 @@ namespace App\Modules\Subscriptions\Traits;
 use App\Modules\Subscriptions\Events\CancelSubscription;
 use App\Modules\Subscriptions\Events\ExtendSubscription;
 use App\Modules\Subscriptions\Events\ExtendSubscriptionUntil;
+use App\Modules\Subscriptions\Events\FeatureUsed;
 use App\Modules\Subscriptions\Events\NewSubscription;
 use App\Modules\Subscriptions\Events\NewSubscriptionUntil;
 use App\Modules\Subscriptions\Events\UpgradeSubscription;
 use App\Modules\Subscriptions\Events\UpgradeSubscriptionUntil;
+use App\Modules\Subscriptions\Models\Feature;
+use App\Modules\Subscriptions\Models\FeatureUsage;
 use App\Modules\Subscriptions\Models\Plan;
 use App\Modules\Subscriptions\Models\Subscription;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Support\Collection;
 
 trait HasPlans
 {
+    protected ?Collection $loadedFeatures = null;
+
+    protected ?Collection $loadedSubscriptionFeatures = null;
+
+    protected ?Collection $loadedTicketFeatures = null;
+
+    public function subscribeTo($plan, int $duration = 30, bool $isRecurring = true): Subscription|false
+    {
+        if ($duration < 1 || $this->hasActiveSubscription()) {
+            return false;
+        }
+
+        if ($this->hasDueSubscription()) {
+            $this->lastDueSubscription()->delete();
+        }
+
+        $subscription = $this->subscriptions()->save(
+            new Subscription([
+                'plan_id'      => $plan->id,
+                'starts_on'    => Carbon::now()->subSeconds(1),
+                'expires_on'   => Carbon::now()->addDays($duration),
+                'cancelled_on' => null,
+            ])
+        );
+
+        event(new NewSubscription($this, $subscription));
+
+        return $subscription;
+    }
 
     public function upgradeCurrentPlanTo(
         $newPlan,
         int $duration = 30,
         bool $startFromNow = true,
         bool $isRecurring = true
-    ): Subscription|false {
+    ): Subscription|false
+    {
         if (!$this->hasActiveSubscription()) {
             return $this->subscribeTo($newPlan, $duration, $isRecurring);
         }
@@ -69,37 +105,67 @@ trait HasPlans
     {
         return $this->subscriptions()
             ->where('starts_on', '<', Carbon::now())
-            ->where('expires_on', '>', Carbon::now());
+            ->where('expires_on', '>', Carbon::now())
+        ;
     }
 
-    public function subscriptions()
+    public function subscriptions(): MorphMany
     {
         return $this->morphMany(Subscription::class, 'subscriber');
     }
 
-    public function subscribeTo($plan, int $duration = 30, bool $isRecurring = true): Subscription|false
+    public function subscription(): MorphOne
     {
+        return $this->morphOne(Subscription::class, 'subscriber')->ofMany('expires_on', 'MAX');
+    }
 
-        if ($duration < 1 || $this->hasActiveSubscription()) {
-            return false;
-        }
+    public function lastSubscription()
+    {
+        return app(Subscription::class)
+            ->withExpired()
+            ->whereMorphedTo('subscriber', $this)
+            ->orderBy('starts_on', 'DESC')
+            ->first()
+        ;
+    }
 
-        if ($this->hasDueSubscription()) {
-            $this->lastDueSubscription()->delete();
-        }
+    public function consume($featureName, ?float $usage = null)
+    {
+        throw_if($this->missingFeature($featureName),
+            new \Exception(
+                'None of the active plans grants access to this feature.',
+            ));
 
-        $subscription = $this->subscriptions()->save(
-            new Subscription([
-                'plan_id'             => $plan->id,
-                'starts_on'           => Carbon::now()->subSeconds(1),
-                'expires_on'          => Carbon::now()->addDays($duration),
-                'cancelled_on'        => null,
-            ])
-        );
+        throw_if($this->cantUse($featureName, $usage),
+            new \Exception(
+                'The feature has no enough charges to this consumption.',
+            ));
 
-        event(new NewSubscription($this, $subscription));
+        $feature = $this->getFeature($featureName);
 
-        return $subscription;
+        $featureUsage = $this->consumeFeature($feature, $usage);
+
+        event(new FeatureUsed($this, $feature, $usage));
+    }
+
+    protected function consumeFeature(Feature $feature, ?float $used = null)
+    {
+        $consumptionExpiration = $feature->consumable()
+            ? $feature->calculateNextRecurrenceEnd($this->subscription->started_at)
+            : null;
+
+        $featureUsage = $this->featureUsages()
+                             ->make([
+                                 'used'       => $used,
+                                 'expired_at' => $consumptionExpiration,
+                             ])
+                             ->feature()
+                             ->associate($feature)
+        ;
+
+        $featureUsage->save();
+
+        return $featureUsage;
     }
 
     public function hasDueSubscription(): bool
@@ -155,24 +221,12 @@ trait HasPlans
         return $this->subscriptions()->latest('starts_on')->notCancelled()->unpaid()->first();
     }
 
-    public function lastSubscription(): Subscription|false
-    {
-        if (!$this->hasSubscriptions()) {
-            return false;
-        }
-
-        if ($this->hasActiveSubscription()) {
-            return $this->activeSubscription();
-        }
-
-        return $this->subscriptions()->latest('starts_on')->first();
-    }
-
     public function extendCurrentSubscriptionWith(
         int $duration = 30,
         bool $startFromNow = true,
         bool $isRecurring = true
-    ): Subscription|false {
+    ): Subscription|false
+    {
         if (!$this->hasActiveSubscription()) {
             if ($this->hasSubscriptions()) {
                 $lastActiveSubscription = $this->lastActiveSubscription();
@@ -276,7 +330,6 @@ trait HasPlans
 
     public function subscribeToUntil($plan, $date, bool $isRecurring = true)
     {
-
         $date = Carbon::parse($date);
 
         if ($date->lessThanOrEqualTo(Carbon::now()) || $this->hasActiveSubscription()) {
@@ -444,6 +497,119 @@ trait HasPlans
     public function notExpired()
     {
         return !$this->expired();
+    }
+
+    public function featureUsages()
+    {
+        return $this->morphMany(FeatureUsage::class, 'subscriber');
+    }
+
+    public function canConsume($featureCode, ?float $amount = null): bool
+    {
+        if (empty($feature = $this->getFeature($featureCode))) {
+            return false;
+        }
+
+        if (!$feature->consumable()) {
+            return true;
+        }
+
+        $remainingCharges = $this->getRemainingCharges($featureCode);
+
+        return $remainingCharges >= $amount;
+    }
+
+    public function cantConsume($featureCode, ?float $consumption = null): bool
+    {
+        return !$this->canConsume($featureCode, $consumption);
+    }
+
+    public function hasFeature($featureCode): bool
+    {
+        return !$this->missingFeature($featureCode);
+    }
+
+    public function missingFeature($featureCode): bool
+    {
+        return empty($this->getFeature($featureCode));
+    }
+
+    public function getRemainingCharges($featureCode): float
+    {
+        $balance = $this->balance($featureCode);
+
+        return max($balance, 0);
+    }
+
+    public function getFeature(string $featureCode): ?Feature
+    {
+        return $this->features->firstWhere('code', $featureCode);
+    }
+
+    public function balance($featureCode)
+    {
+        if (empty($this->getFeature($featureCode))) {
+            return 0;
+        }
+
+        $currentConsumption = $this->getCurrentConsumption($featureCode);
+        $totalCharges = $this->getTotalCharges($featureCode);
+
+        return $totalCharges - $currentConsumption;
+    }
+
+    public function getCurrentConsumption($featureCode): float
+    {
+        if (empty($feature = $this->getFeature($featureCode))) {
+            return 0;
+        }
+
+        return $this->featureUsages()
+                    ->whereBelongsTo($feature)
+                    ->sum('used')
+        ;
+    }
+
+    public function getTotalCharges($featureCode): float
+    {
+        if (empty($feature = $this->getFeature($featureCode))) {
+            return 0;
+        }
+
+        return $this->getSubscriptionChargesForAFeature($feature);
+    }
+
+    public function getFeaturesAttribute(): Collection
+    {
+        if (!is_null($this->loadedFeatures)) {
+            return $this->loadedFeatures;
+        }
+
+        $this->loadedFeatures = $this->loadSubscriptionFeatures();
+
+        return $this->loadedFeatures;
+    }
+
+    protected function loadSubscriptionFeatures(): Collection
+    {
+        if (!is_null($this->loadedSubscriptionFeatures)) {
+            return $this->loadedSubscriptionFeatures;
+        }
+
+        $this->loadMissing('subscription.plan.features');
+
+        return $this->loadedSubscriptionFeatures = $this->subscription->plan->features ?? Collection::empty();
+    }
+
+    protected function getSubscriptionChargesForAFeature(Feature $feature): float
+    {
+        $subscriptionFeature = $this->loadedSubscriptionFeatures->find($feature);
+
+        if (empty($subscriptionFeature)) {
+            return 0;
+        }
+
+        return $subscriptionFeature->pivot->value;
     }
 
 }

@@ -3,8 +3,8 @@
 namespace App\Modules\Subscriptions\Events;
 
 use App\Modules\Subscriptions\Models\Feature;
+use App\Modules\Subscriptions\Models\Subscription;
 use Illuminate\Queue\SerializesModels;
-use LucasDotVin\Soulbscription\Models\Subscription;
 
 class FeatureUnconsumed
 {

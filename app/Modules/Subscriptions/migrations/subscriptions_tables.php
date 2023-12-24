@@ -43,6 +43,15 @@ return new class extends Migration {
             $table->timestamps();
         });
 
+        Schema::create('feature_usages', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedDecimal('used')->nullable();
+            $table->timestamp('expired_at')->nullable();
+            $table->foreignIdFor(Feature::class)->constrained()->cascadeOnDelete();
+            $table->morphs('subscriber');
+            $table->timestamps();
+        });
+
         Schema::create('feature_plan', function (Blueprint $table) {
             $table->id();
             $table->decimal('value')->nullable();
@@ -58,6 +67,7 @@ return new class extends Migration {
         Schema::dropIfExists('plans');
         Schema::dropIfExists('features');
         Schema::dropIfExists('subscriptions');
-        Schema::dropIfExists('subscription_usages');
+        Schema::dropIfExists('feature_usages');
+        Schema::dropIfExists('feature_plan');
     }
 };

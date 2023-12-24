@@ -3,7 +3,7 @@
 namespace App\Modules\Subscriptions\Models;
 
 use App\Modules\Subscriptions\Enums\FeatureType;
-use App\Modules\Subscriptions\Events\FeatureConsumed;
+use App\Modules\Subscriptions\Events\FeatureUsed;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -13,14 +13,23 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Subscription extends Model
 {
-    protected $table   = 'subscriptions';
-    protected $guarded = [];
+    protected $table    = 'subscriptions';
+    protected $fillable = [
+        'plan_id',
+        'subscriber_type',
+        'subscriber_id',
+        'starts_on',
+        'expires_on',
+        'cancelled_on',
+        'suppressed_at',
+        'was_switched',
+    ];
 
     protected $casts = [
-        'starts_on'     => Carbon::class,
-        'expires_on'    => Carbon::class,
-        'cancelled_on'  => Carbon::class,
-        'suppressed_at' => Carbon::class,
+        'starts_on'     => 'date',
+        'expires_on'    => 'date',
+        'cancelled_on'  => 'date',
+        'suppressed_at' => 'date',
         'was_switched'  => 'boolean',
     ];
     protected $with  = ['plan'];
@@ -94,7 +103,7 @@ class Subscription extends Model
         return $this;
     }
 
-    public function consumeFeature(string $featureCode, float $amount): bool
+    public function useFeature(string $featureCode, float $amount): bool
     {
         $feature = $this->features()->code($featureCode)->first();
 
@@ -106,7 +115,7 @@ class Subscription extends Model
 
         if (!$usage) {
             $usage = $this->usages()->save(
-                new SubscriptionUsage([
+                new FeatureUsage([
                     'code' => $featureCode,
                     'used' => 0,
                 ])
@@ -119,7 +128,7 @@ class Subscription extends Model
 
         $remaining = (float)($feature->isUnlimited()) ? -1 : $feature->limit - ($usage->used + $amount);
 
-        event(new FeatureConsumed($this, $feature, $amount, $remaining));
+        event(new FeatureUsed($this, $feature, $amount));
 
         return $usage->update([
             'used' => (float)($usage->used + $amount),
@@ -138,7 +147,7 @@ class Subscription extends Model
 
     public function usages()
     {
-        return $this->hasMany(SubscriptionUsage::class, 'subscription_id');
+        return $this->hasMany(FeatureUsage::class, 'subscription_id');
     }
 
     /**
@@ -170,10 +179,8 @@ class Subscription extends Model
             );
         }
 
-        $used = (float)($feature->isUnlimited(
-        )) ? ((($usage->used - $amount < 0) ? 0 : ($usage->used - $amount))) : ($usage->used - $amount);
-        $remaining = (float)($feature->isUnlimited(
-        )) ? -1 : (($used > 0) ? ($feature->limit - $used) : $feature->limit);
+        $used = (float)($feature->isUnlimited()) ? ((($usage->used - $amount < 0) ? 0 : ($usage->used - $amount))) : ($usage->used - $amount);
+        $remaining = (float)($feature->isUnlimited()) ? -1 : (($used > 0) ? ($feature->limit - $used) : $feature->limit);
 
         event(new \App\Modules\Subscriptions\Events\FeatureUnconsumed($this, $feature, $amount, $remaining));
 
@@ -232,30 +239,26 @@ class Subscription extends Model
     {
         if ($plan->periodicity) {
             $expiration = $expiration ?? $plan->calculateNextRecurrenceEnd($startDate);
-
-            $graceDaysEnd = $plan->hasGraceDays
-                ? $plan->calculateGraceDaysEnd($expiration)
-                : null;
         } else {
             $expiration = null;
-            $graceDaysEnd = null;
         }
 
         return $this->subscription()
             ->make([
-                'expired_at'          => $expiration,
-                'grace_days_ended_at' => $graceDaysEnd,
+                'expired_at' => $expiration,
             ])
             ->plan()
             ->associate($plan)
-            ->start($startDate);
+            ->start($startDate)
+        ;
     }
 
     public function hasSubscriptionTo(Plan $plan): bool
     {
         return $this->subscription()
             ->where('plan_id', $plan->id)
-            ->exists();
+            ->exists()
+        ;
     }
 
     public function isSubscribedTo(Plan $plan): bool
@@ -279,14 +282,16 @@ class Subscription extends Model
             $this->subscription
                 ->markAsSwitched()
                 ->suppress()
-                ->save();
+                ->save()
+            ;
 
             return $this->subscribeTo($plan, $expiration);
         }
 
         $this->subscription
             ->markAsSwitched()
-            ->save();
+            ->save()
+        ;
 
         $startDate = $this->subscription->expired_at;
         $newSubscription = $this->subscribeTo($plan, startDate: $startDate);

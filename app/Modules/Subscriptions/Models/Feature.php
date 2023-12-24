@@ -48,4 +48,9 @@ class Feature extends Model
         $query->where('type', FeatureType::feature);
     }
 
+    public function consumable(): bool
+    {
+        return $this->type === FeatureType::limit;
+    }
+
 }

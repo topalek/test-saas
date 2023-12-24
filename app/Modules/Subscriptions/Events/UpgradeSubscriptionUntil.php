@@ -3,10 +3,10 @@
 namespace App\Modules\Subscriptions\Events;
 
 use App\Modules\Subscriptions\Models\Plan;
+use App\Modules\Subscriptions\Models\Subscription;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Queue\SerializesModels;
-use LucasDotVin\Soulbscription\Models\Subscription;
 
 class UpgradeSubscriptionUntil
 {

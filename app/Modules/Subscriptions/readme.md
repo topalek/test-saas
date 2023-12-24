@@ -236,7 +236,7 @@ $listen = [
     // $event->oldPlan = Здесь находится текущий (теперь старый) план.
     // $event->newPlan = Здесь находится новый план. Если это тот же план, он будет совпадать с $event->oldPlan.
     ],
-    \App\Modules\Subscriptions\Events\FeatureConsumed::class => [
+    \App\Modules\Subscriptions\Events\FeatureUsed::class => [
     // $event->subscription = Текущая подписка.
     // $event->feature = Использованная функция.
     // $event->used = Использованное количество.
